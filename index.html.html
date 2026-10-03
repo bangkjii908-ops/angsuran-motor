@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pencatatan Angsuran Motor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f5f7fb,#0d1117);--card:light-dark(#fff,#151b23);--text:light-dark(#172033,#f2f5f9);--muted:light-dark(#667085,#a8b3c2);--line:light-dark(#e5e7eb,#2a3441);--accent:light-dark(#2563eb,#4f8cff);--ok:light-dark(#15803d,#4ade80);--danger:light-dark(#dc2626,#fb7185)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}#app{min-height:100vh;background:var(--bg)}
+header{padding:28px 20px 18px;max-width:1100px;margin:auto}h1{margin:0 0 5px;font-size:28px}header p{margin:0;color:var(--muted)}main{max-width:1100px;margin:auto;padding:0 20px 36px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 4px 16px #00000008}.label{font-size:13px;color:var(--muted);margin-bottom:7px}.value{font-size:23px;font-weight:750}.blue{color:var(--accent)}.green{color:var(--ok)}
+.panel{margin-top:18px}.panel h2{font-size:18px;margin:0 0 14px}.details{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.detail{padding:13px;background:light-dark(#f8fafc,#10161e);border-radius:12px}.detail b{display:block;margin-top:3px}
+.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:720px}.table th,.table td{text-align:left;padding:13px 12px;border-bottom:1px solid var(--line);font-size:14px}.table th{color:var(--muted);font-weight:650}.badge{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700}.paid{background:light-dark(#dcfce7,#12351f);color:var(--ok)}.unpaid{background:light-dark(#fff7ed,#3a2514);color:light-dark(#c2410c,#fb923c)}button{border:0;border-radius:9px;padding:8px 12px;font-weight:700;cursor:pointer;background:var(--accent);color:white}button.secondary{background:transparent;color:var(--text);border:1px solid var(--line)}button.danger{color:var(--danger);border-color:var(--danger)}
+.receipt{max-width:430px;margin:20px auto;padding:24px;border:1px dashed var(--line);border-radius:14px;background:var(--card)}.receipt h3{text-align:center;margin:0 0 18px}.receipt-row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid var(--line)}.receipt-total{font-size:20px;font-weight:800;margin-top:12px}
+.form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.field{flex:1;min-width:170px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.field input{width:100%;padding:10px 11px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text)}.upload{display:flex;flex-direction:column;gap:6px}.upload input{padding:8px}.proof-name{font-size:12px;color:var(--muted);word-break:break-word}.proof-img{max-width:100%;max-height:220px;border-radius:10px;margin-top:8px;border:1px solid var(--line);cursor:zoom-in}.note{color:var(--muted);font-size:12px;margin-top:10px}
+.status{display:none;margin:0 0 18px;padding:10px 13px;border-radius:10px;border:1px solid var(--line);font-size:13px}.status.ok{color:var(--ok)}.status.err{color:var(--danger)}.status.wait{color:var(--accent)}
+.zoom-modal{display:none;position:fixed;inset:0;background:#000c;z-index:9999;align-items:center;justify-content:center;padding:30px}.zoom-modal.show{display:flex}.zoom-modal img{max-width:90vw;max-height:86vh;object-fit:contain;transform:scale(1);transition:transform .15s}.zoom-tools{position:fixed;top:16px;right:16px;display:flex;gap:7px}.zoom-tools button,.zoom-close{background:#fff;color:#111;border:0;border-radius:9px}.zoom-close{position:fixed;top:16px;left:16px;width:40px;height:40px;font-size:22px}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.details{grid-template-columns:repeat(2,1fr)}}@media(max-width:500px){.grid{grid-template-columns:1fr 1fr;gap:9px}.card{padding:14px}.value{font-size:18px}h1{font-size:23px}}
+@media print{
+  body{background:#fff!important;color:#111!important}
+  body>*{display:none!important}
+  #printArea{display:block!important}
+  #printArea .receipt{display:block!important;max-width:430px;margin:0 auto;border:1px dashed #999;background:#fff;color:#111}
+  #printArea button,#printArea .note{display:none!important}
+}
+#printArea{display:none}
+</style>
+</head>
+<body><div id="app">
+<header><h1>🏍️ Angsuran Motor Saya</h1><p>Pencatatan cicilan motor pribadi <b>Nikhol (ini Kholid)</b></p></header>
+<main>
+<section class="grid">
+<div class="card"><div class="label">Harga Motor</div><div class="value" id="harga">Rp20.000.000</div></div>
+<div class="card"><div class="label">Total Dibayar</div><div class="value green" id="dibayar">Rp0</div></div>
+<div class="card"><div class="label">Sisa Angsuran</div><div class="value blue" id="sisa">Rp20.000.000</div></div>
+<div class="card"><div class="label">Progress</div><div class="value" id="progress">0 / 20</div></div>
+</section>
+
+<section class="card panel"><h2>Detail Kredit Saya</h2><div class="details">
+<div class="detail"><span class="label">DP</span><b>Rp0</b></div>
+<div class="detail"><span class="label">Cicilan / bulan</span><b>Rp1.000.000</b></div>
+<div class="detail"><span class="label">Jatuh tempo</span><b>Tanggal 1</b></div>
+</div></section>
+
+<div id="status" class="status wait"></div>
+<section class="card panel"><h2>Catat Pembayaran</h2>
+<div class="form">
+<div class="field"><label>Tanggal pembayaran</label><input type="date" id="payDate"></div>
+<div class="field"><label>Jumlah</label><input type="number" id="amount" value="1000000" min="0"></div>
+<div class="field"><label>Keterangan</label><input type="text" id="note" placeholder="Contoh: Angsuran bulan Oktober"></div>
+<div class="field upload"><label>Bukti pembayaran</label><input type="file" id="proof" accept="image/*,.pdf"></div>
+<button id="addBtn" onclick="addPayment()">+ Catat Pembayaran</button>
+</div>
+<div class="note">Data tersimpan online di Supabase dan dapat diakses dari perangkat lain.</div>
+</section>
+
+<section class="card panel"><h2>Riwayat Angsuran</h2>
+<div class="table-wrap"><table class="table"><thead><tr><th>Ke</th><th>Jatuh Tempo</th><th>Jumlah</th><th>Status</th><th>Tanggal Bayar</th><th>Keterangan</th><th>Bukti</th><th>Aksi</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div id="receipt"></div>
+</section>
+</main></div>
+
+<div id="printArea"></div>
+<div class="zoom-modal" id="zoomModal" onclick="if(event.target===this)hideZoom()">
+<button class="zoom-close" onclick="hideZoom()">×</button>
+<div class="zoom-tools"><button onclick="zoom(-.25)">−</button><button onclick="zoom(0)">100%</button><button onclick="zoom(.25)">+</button></div>
+<img id="zoomImg" alt="Bukti pembayaran">
+</div>
+
+<script>
+const SUPABASE_URL="https://wqpllduqpulxohbhsypj.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_nRgSiRrVXYktP6cd8WXDlA_acnzjdPs";
+const BUCKET="bukti-pembayaran";
+const total=20000000, monthly=1000000, tenor=20;
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+let payments=[], zoomScale=1;
+
+const rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+function setStatus(t,type='wait'){const e=document.getElementById('status');if(!e)return;e.className='status '+type;e.innerHTML=t;e.style.display='block'}
+function errText(e){return [e?.message,e?.details,e?.hint,e?.code?('Kode: '+e.code):''].filter(Boolean).join(' | ')||'Error tidak diketahui';}
+function formatDate(s,style='short'){if(!s)return '-';return new Date(s+'T00:00:00').toLocaleDateString('id-ID',style==='long'?{day:'2-digit',month:'long',year:'numeric'}:{day:'2-digit',month:'short',year:'numeric'})}
+function dueDate(i){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+i);return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}
+function setToday(){document.getElementById('payDate').value=new Date().toISOString().slice(0,10)}
+
+async function loadPayments(){
+  try{
+    const {data,error}=await sb.from('angsuran').select('*').order('pembayaran_ke',{ascending:true}).order('tanggal_pembayaran',{ascending:true}).order('created_at',{ascending:true});
+    if(error)throw error;
+    payments=data||[];
+    render();
+    setStatus('✓ Terhubung ke Supabase • Data tersimpan online','ok');
+  }catch(e){
+    console.error(e);
+    setStatus('<b>Gagal mengambil data dari Supabase</b><br>'+esc(errText(e)),'err');
+    document.getElementById('rows').innerHTML='<tr><td colspan="8" style="padding:25px;color:var(--muted)">Data belum dapat dimuat.</td></tr>';
+  }
+}
+
+async function uploadProof(file){
+  if(!file)return null;
+  if(file.size>6*1024*1024)throw new Error('Ukuran bukti maksimal 6 MB.');
+  const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const base=file.name.replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]/g,'-').slice(0,45)||'bukti';
+  const path=Date.now()+'_'+Math.random().toString(36).slice(2)+'_'+base+'.'+ext;
+  const {data,error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined});
+  if(error)throw new Error('Upload bukti gagal: '+errText(error));
+  const {data:pub}=sb.storage.from(BUCKET).getPublicUrl(data.path);
+  return {name:file.name,url:pub.publicUrl,path:data.path};
+}
+async function removeFile(url){
+  if(!url)return;
+  const marker='/storage/v1/object/public/'+BUCKET+'/';
+  const i=url.indexOf(marker);if(i<0)return;
+  const path=decodeURIComponent(url.slice(i+marker.length));
+  const {error}=await sb.storage.from(BUCKET).remove([path]);
+  if(error)console.warn(error);
+}
+
+async function addPayment(){
+  const date=document.getElementById('payDate').value;
+  const amount=Number(document.getElementById('amount').value);
+  const note=document.getElementById('note').value.trim();
+  const file=document.getElementById('proof').files[0];
+  if(!date||!amount)return alert('Isi tanggal dan jumlah pembayaran.');
+  const btn=document.getElementById('addBtn');btn.disabled=true;btn.textContent='Menyimpan...';
+  let uploaded=null;
+  try{
+    const nextNo=payments.length+1;
+    uploaded=await uploadProof(file);
+    const row={no_transaksi:'TRX-'+Date.now().toString().slice(-8),nama:'Nikhol (ini Kholid)',pembayaran_ke:nextNo,tanggal_pembayaran:date,jumlah:amount,keterangan:note||null,bukti_nama:uploaded?.name||null,bukti_url:uploaded?.url||null};
+    const {error}=await sb.from('angsuran').insert(row);
+    if(error){if(uploaded)await removeFile(uploaded.url);throw new Error('Data gagal disimpan: '+errText(error))}
+    document.getElementById('note').value='';document.getElementById('proof').value='';
+    setStatus('✓ Pembayaran berhasil disimpan','ok');
+    await loadPayments();
+    const idx=payments.findIndex(p=>p.no_transaksi===row.no_transaksi);
+    if(idx>=0)showReceipt(idx);
+  }catch(e){
+    console.error(e);
+    setStatus('<b>Gagal menyimpan pembayaran</b><br>'+esc(errText(e)),'err');
+  }finally{btn.disabled=false;btn.textContent='+ Catat Pembayaran'}
+}
+
+function render(){
+  const paid=payments.reduce((s,p)=>s+Number(p.jumlah||0),0);
+  document.getElementById('dibayar').textContent=rupiah(paid);
+  document.getElementById('sisa').textContent=rupiah(Math.max(0,total-paid));
+  document.getElementById('progress').textContent=payments.length+' / '+tenor;
+  document.getElementById('rows').innerHTML=payments.length?payments.map((p,i)=>{
+    const proof=p.bukti_url?(String(p.bukti_url).toLowerCase().includes('.pdf')?'<button class="secondary" onclick="window.open(\''+esc(p.bukti_url)+'\',\'_blank\')">📄 Lihat</button>':'<button class="secondary" onclick="showZoom(\''+esc(p.bukti_url)+'\')">🖼️ Lihat</button>'):'-';
+    return '<tr><td>'+(i+1)+'</td><td>'+dueDate(i)+'</td><td>'+rupiah(p.jumlah)+'</td><td><span class="badge paid">Lunas</span></td><td>'+formatDate(p.tanggal_pembayaran)+'</td><td>'+esc(p.keterangan||'-')+'</td><td>'+proof+'</td><td><button class="secondary" onclick="showReceipt('+i+')">Lihat</button> <button class="secondary danger" onclick="removePayment('+i+')">Hapus</button></td></tr>'
+  }).join(''):'<tr><td colspan="8" style="padding:25px;text-align:center;color:var(--muted)">Belum ada pembayaran.</td></tr>';
+}
+
+function showReceipt(i){
+  const p=payments[i];if(!p)return;
+  const proof=p.bukti_url?(String(p.bukti_url).toLowerCase().includes('.pdf')?'<div class="proof-name">📄 '+esc(p.bukti_nama||'Bukti PDF')+'</div>':'<div class="proof-name">🖼️ '+esc(p.bukti_nama||'Bukti pembayaran')+'</div><img class="proof-img" src="'+esc(p.bukti_url)+'" alt="Bukti pembayaran" onclick="showZoom(\''+esc(p.bukti_url)+'\')">'):'<div class="proof-name">Belum ada bukti pembayaran</div>';
+  const content='<div class="receipt"><h3>BUKTI TRANSAKSI ANGSURAN</h3><div class="receipt-row"><span>No. Transaksi</span><b>'+esc(p.no_transaksi||'TRX-LAMA')+'</b></div><div class="receipt-row"><span>Nama</span><b>Nikhol (ini Kholid)</b></div><div class="receipt-row"><span>Pembayaran ke</span><b>'+(i+1)+'</b></div><div class="receipt-row"><span>Tanggal</span><b>'+formatDate(p.tanggal_pembayaran,'long')+'</b></div><div class="receipt-row"><span>Keterangan</span><b>'+esc(p.keterangan||'-')+'</b></div><div class="receipt-row"><span>Metode</span><b>Pembayaran angsuran</b></div><div class="receipt-total">Dibayar: '+rupiah(p.jumlah)+'</div><div style="margin-top:14px"><b>Bukti Pembayaran</b>'+proof+'</div><p class="note">Bukti transaksi pribadi • Tersimpan online</p><button onclick="printReceipt('+i+')">Cetak / Simpan PDF</button></div>';
+  document.getElementById('receipt').innerHTML=content;
+}
+
+function printReceipt(i){
+  const r=document.getElementById('receipt').querySelector('.receipt');if(!r)return;
+  const clone=r.cloneNode(true);
+  clone.querySelectorAll('button').forEach(x=>x.remove());
+  clone.querySelectorAll('.note').forEach(x=>x.remove());
+  document.getElementById('printArea').innerHTML='';document.getElementById('printArea').appendChild(clone);
+  window.print();
+}
+
+async function removePayment(i){
+  const p=payments[i];if(!p)return;
+  if(!confirm('Hapus catatan pembayaran ini?'))return;
+  try{
+    const {error}=await sb.from('angsuran').delete().eq('id',p.id);
+    if(error)throw error;
+    if(p.bukti_url)await removeFile(p.bukti_url);
+    document.getElementById('receipt').innerHTML='';
+    setStatus('✓ Pembayaran berhasil dihapus','ok');
+    await loadPayments();
+  }catch(e){console.error(e);setStatus('<b>Gagal menghapus pembayaran</b><br>'+esc(errText(e)),'err')}
+}
+
+function showZoom(url){zoomScale=1;document.getElementById('zoomImg').src=url;document.getElementById('zoomImg').style.transform='scale(1)';document.getElementById('zoomModal').classList.add('show')}
+function hideZoom(){document.getElementById('zoomModal').classList.remove('show')}
+function zoom(v){if(v===0)zoomScale=1;else zoomScale=Math.max(.5,Math.min(5,zoomScale+v));document.getElementById('zoomImg').style.transform='scale('+zoomScale+')'}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')hideZoom()});
+document.getElementById('zoomImg').addEventListener('click',()=>zoom(.25));
+setToday();
+loadPayments();
+</script></body></html>
