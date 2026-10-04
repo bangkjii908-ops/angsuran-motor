@@ -39,7 +39,6 @@ header{padding:28px 20px 18px;max-width:1100px;margin:auto}h1{margin:0 0 5px;fon
 <section class="card panel"><h2>Detail Kredit Saya</h2><div class="details">
 <div class="detail"><span class="label">DP</span><b>Rp0</b></div>
 <div class="detail"><span class="label">Cicilan / bulan</span><b>Rp1.000.000</b></div>
-<div class="detail"><span class="label">Jatuh tempo</span><b>Tanggal 1</b></div>
 </div></section>
 
 <div id="status" class="status wait" role="status" aria-live="polite"></div>
@@ -55,7 +54,7 @@ header{padding:28px 20px 18px;max-width:1100px;margin:auto}h1{margin:0 0 5px;fon
 </section>
 
 <section class="card panel"><h2>Riwayat Angsuran</h2>
-<div class="table-wrap"><table class="table"><thead><tr><th>Ke</th><th>Jatuh Tempo</th><th>Jumlah</th><th>Status</th><th>Tanggal Bayar</th><th>Keterangan</th><th>Bukti</th><th>Aksi</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Ke</th><th>Jumlah</th><th>Status</th><th>Tanggal Bayar</th><th>Keterangan</th><th>Bukti</th><th>Aksi</th></tr></thead><tbody id="rows"></tbody></table></div>
 <div id="receipt"></div>
 </section>
 </main></div>
@@ -95,7 +94,6 @@ function errText(e){
   return parts.join(' | ')||'Error tidak diketahui';
 }
 function formatDate(s,style='short'){if(!s)return '-';return new Date(s+'T00:00:00').toLocaleDateString('id-ID',style==='long'?{day:'2-digit',month:'long',year:'numeric'}:{day:'2-digit',month:'short',year:'numeric'})}
-function dueDate(i){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+i);return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}
 function setToday(){document.getElementById('payDate').value=new Date().toISOString().slice(0,10)}
 
 async function readJsonResponse(res){
@@ -123,7 +121,7 @@ async function loadPayments(){
   }catch(e){
     console.error('loadPayments',e);
     setStatus('<b>Gagal terhubung ke Supabase</b><br>'+esc(errText(e)),'err');
-    document.getElementById('rows').innerHTML='<tr><td colspan="8" style="padding:25px;color:var(--muted)">Data belum dapat dimuat.</td></tr>';
+    document.getElementById('rows').innerHTML='<tr><td colspan="7" style="padding:25px;color:var(--muted)">Data belum dapat dimuat.</td></tr>';
     return false;
   }
 }
@@ -244,8 +242,8 @@ function render(){
   document.getElementById('progress').textContent=payments.length+' / '+tenor;
   document.getElementById('rows').innerHTML=payments.length?payments.map((p,i)=>{
     const proof=p.bukti_url?(String(p.bukti_url).toLowerCase().includes('.pdf')?'<button class="secondary" onclick="window.open(\''+esc(p.bukti_url)+'\',\'_blank\')">📄 Lihat</button>':'<button class="secondary" onclick="showZoom(\''+esc(p.bukti_url)+'\')">🖼️ Lihat</button>'):'-';
-    return '<tr><td>'+(i+1)+'</td><td>'+formatDate(p.tanggal_pembayaran)+'</td><td>'+rupiah(p.jumlah)+'</td><td><span class="badge paid">Lunas</span></td><td>'+formatDate(p.tanggal_pembayaran)+'</td><td>'+esc(p.keterangan||'-')+'</td><td>'+proof+'</td><td><button class="secondary" onclick="showReceipt('+i+')">Lihat</button> <button class="secondary danger" onclick="removePayment('+i+')">Hapus</button></td></tr>'
-  }).join(''):'<tr><td colspan="8" style="padding:25px;text-align:center;color:var(--muted)">Belum ada pembayaran.</td></tr>';
+    return '<tr><td>'+(i+1)+'</td><td>'+rupiah(p.jumlah)+'</td><td><span class="badge paid">Lunas</span></td><td>'+formatDate(p.tanggal_pembayaran)+'</td><td>'+esc(p.keterangan||'-')+'</td><td>'+proof+'</td><td><button class="secondary" onclick="showReceipt('+i+')">Lihat</button> <button class="secondary danger" onclick="removePayment('+i+')">Hapus</button></td></tr>'
+  }).join(''):'<tr><td colspan="7" style="padding:25px;text-align:center;color:var(--muted)">Belum ada pembayaran.</td></tr>';
 }
 
 function showReceipt(i){
