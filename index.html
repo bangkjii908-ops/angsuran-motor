@@ -244,7 +244,7 @@ function render(){
   document.getElementById('progress').textContent=payments.length+' / '+tenor;
   document.getElementById('rows').innerHTML=payments.length?payments.map((p,i)=>{
     const proof=p.bukti_url?(String(p.bukti_url).toLowerCase().includes('.pdf')?'<button class="secondary" onclick="window.open(\''+esc(p.bukti_url)+'\',\'_blank\')">📄 Lihat</button>':'<button class="secondary" onclick="showZoom(\''+esc(p.bukti_url)+'\')">🖼️ Lihat</button>'):'-';
-    return '<tr><td>'+(i+1)+'</td><td>'+dueDate(i)+'</td><td>'+rupiah(p.jumlah)+'</td><td><span class="badge paid">Lunas</span></td><td>'+formatDate(p.tanggal_pembayaran)+'</td><td>'+esc(p.keterangan||'-')+'</td><td>'+proof+'</td><td><button class="secondary" onclick="showReceipt('+i+')">Lihat</button> <button class="secondary danger" onclick="removePayment('+i+')">Hapus</button></td></tr>'
+    return '<tr><td>'+(i+1)+'</td><td>'+formatDate(p.tanggal_pembayaran)+'</td><td>'+rupiah(p.jumlah)+'</td><td><span class="badge paid">Lunas</span></td><td>'+formatDate(p.tanggal_pembayaran)+'</td><td>'+esc(p.keterangan||'-')+'</td><td>'+proof+'</td><td><button class="secondary" onclick="showReceipt('+i+')">Lihat</button> <button class="secondary danger" onclick="removePayment('+i+')">Hapus</button></td></tr>'
   }).join(''):'<tr><td colspan="8" style="padding:25px;text-align:center;color:var(--muted)">Belum ada pembayaran.</td></tr>';
 }
 
