@@ -255,7 +255,9 @@ function showReceipt(i){
   document.getElementById('receipt').innerHTML=content;
 }
 
-function hideReceipt(){document.getElementById('receipt').innerHTML='';}\n\nfunction printReceipt(i){
+function hideReceipt(){document.getElementById('receipt').innerHTML='';}
+
+function printReceipt(i){
   const r=document.getElementById('receipt').querySelector('.receipt');if(!r)return;
   const clone=r.cloneNode(true);
   clone.querySelectorAll('button').forEach(x=>x.remove());
