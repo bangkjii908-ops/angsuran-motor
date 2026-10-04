@@ -13,7 +13,7 @@ header{padding:28px 20px 18px;max-width:1100px;margin:auto}h1{margin:0 0 5px;fon
 .table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:720px}.table th,.table td{text-align:left;padding:13px 12px;border-bottom:1px solid var(--line);font-size:14px}.table th{color:var(--muted);font-weight:650}.badge{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700}.paid{background:light-dark(#dcfce7,#12351f);color:var(--ok)}.unpaid{background:light-dark(#fff7ed,#3a2514);color:light-dark(#c2410c,#fb923c)}button{border:0;border-radius:9px;padding:8px 12px;font-weight:700;cursor:pointer;background:var(--accent);color:white}button.secondary{background:transparent;color:var(--text);border:1px solid var(--line)}button.danger{color:var(--danger);border-color:var(--danger)}
 .receipt{max-width:430px;margin:20px auto;padding:24px;border:1px dashed var(--line);border-radius:14px;background:var(--card)}.receipt h3{text-align:center;margin:0 0 18px}.receipt-row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid var(--line)}.receipt-total{font-size:20px;font-weight:800;margin-top:12px}
 .form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.field{flex:1;min-width:170px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.field input{width:100%;padding:10px 11px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text)}.upload{display:flex;flex-direction:column;gap:6px}.upload input{padding:8px}.proof-name{font-size:12px;color:var(--muted);word-break:break-word}.proof-img{max-width:100%;max-height:220px;border-radius:10px;margin-top:8px;border:1px solid var(--line);cursor:zoom-in}.note{color:var(--muted);font-size:12px;margin-top:10px}
-.status{display:none;margin:0 0 18px;padding:10px 13px;border-radius:10px;border:1px solid var(--line);font-size:13px}.status.ok{color:var(--ok)}.status.err{color:var(--danger)}.status.wait{color:var(--accent)}
+.status{display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:10000;max-width:min(92vw,760px);padding:11px 15px;border-radius:11px;border:1px solid var(--line);font-size:13px;line-height:1.4;background:var(--card);box-shadow:0 10px 30px #00000030}.status.ok{display:block;color:var(--ok)}.status.err{display:block;color:var(--danger)}.status.wait{display:block;color:var(--accent)}
 .zoom-modal{display:none;position:fixed;inset:0;background:#000c;z-index:9999;align-items:center;justify-content:center;padding:30px}.zoom-modal.show{display:flex}.zoom-modal img{max-width:90vw;max-height:86vh;object-fit:contain;transform:scale(1);transition:transform .15s}.zoom-tools{position:fixed;top:16px;right:16px;display:flex;gap:7px}.zoom-tools button,.zoom-close{background:#fff;color:#111;border:0;border-radius:9px}.zoom-close{position:fixed;top:16px;left:16px;width:40px;height:40px;font-size:22px}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.details{grid-template-columns:repeat(2,1fr)}}@media(max-width:500px){.grid{grid-template-columns:1fr 1fr;gap:9px}.card{padding:14px}.value{font-size:18px}h1{font-size:23px}}
 @media print{
@@ -42,7 +42,7 @@ header{padding:28px 20px 18px;max-width:1100px;margin:auto}h1{margin:0 0 5px;fon
 <div class="detail"><span class="label">Jatuh tempo</span><b>Tanggal 1</b></div>
 </div></section>
 
-<div id="status" class="status wait"></div>
+<div id="status" class="status wait" role="status" aria-live="polite"></div>
 <section class="card panel"><h2>Catat Pembayaran</h2>
 <div class="form">
 <div class="field"><label>Tanggal pembayaran</label><input type="date" id="payDate"></div>
@@ -64,57 +64,94 @@ header{padding:28px 20px 18px;max-width:1100px;margin:auto}h1{margin:0 0 5px;fon
 <div class="zoom-modal" id="zoomModal" onclick="if(event.target===this)hideZoom()">
 <button class="zoom-close" onclick="hideZoom()">×</button>
 <div class="zoom-tools"><button onclick="zoom(-.25)">−</button><button onclick="zoom(0)">100%</button><button onclick="zoom(.25)">+</button></div>
-<img id="zoomImg" alt="Bukti pembayaran
+<img id="zoomImg" alt="Bukti pembayaran">
 </div>
 
 <script>
-const const SUPABASE_URL="https://wqpllduqpulxohbhsypj.supabase.co";
+const SUPABASE_URL="https://wqpllduqpulxohbhsypj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_nRgSiRrVXYktP6cd8WXDlA_acnzjdPs";
 const BUCKET="bukti-pembayaran";
 const total=20000000, monthly=1000000, tenor=20;
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 let payments=[], zoomScale=1;
 
+const apiHeaders=()=>({
+  apikey:SUPABASE_PUBLISHABLE_KEY,
+  Authorization:'Bearer '+SUPABASE_PUBLISHABLE_KEY,
+  Accept:'application/json'
+});
 const rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-function setStatus(t,type='wait'){const e=document.getElementById('status');if(!e)return;e.className='status '+type;e.innerHTML=t;e.style.display='block'}
-function errText(e){return [e?.message,e?.details,e?.hint,e?.code?('Kode: '+e.code):''].filter(Boolean).join(' | ')||'Error tidak diketahui';}
+function setStatus(t,type='wait',autoHide=false){
+  const e=document.getElementById('status');
+  if(!e)return;
+  e.className='status '+type;
+  e.innerHTML=t;
+  e.style.display='block';
+  if(autoHide){clearTimeout(window.__statusTimer);window.__statusTimer=setTimeout(()=>{e.style.display='none'},4000)}
+}
+function errText(e){
+  if(!e)return 'Error tidak diketahui';
+  const parts=[e.message,e.details,e.hint,e.code?('Kode: '+e.code):''].filter(Boolean);
+  return parts.join(' | ')||'Error tidak diketahui';
+}
 function formatDate(s,style='short'){if(!s)return '-';return new Date(s+'T00:00:00').toLocaleDateString('id-ID',style==='long'?{day:'2-digit',month:'long',year:'numeric'}:{day:'2-digit',month:'short',year:'numeric'})}
 function dueDate(i){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+i);return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}
 function setToday(){document.getElementById('payDate').value=new Date().toISOString().slice(0,10)}
 
+async function readJsonResponse(res){
+  const text=await res.text();
+  let data=null;
+  if(text){try{data=JSON.parse(text)}catch{data=text}}
+  if(!res.ok){
+    const msg=typeof data==='string'?data:(data?.message||data?.error_description||data?.error||JSON.stringify(data));
+    const e=new Error(msg||('HTTP '+res.status));
+    e.status=res.status;e.code=data?.code;e.details=data?.details;e.hint=data?.hint;
+    throw e;
+  }
+  return data;
+}
+
 async function loadPayments(){
   try{
-    const {data,error}=await sb.from('angsuran').select('*').order('pembayaran_ke',{ascending:true}).order('tanggal_pembayaran',{ascending:true}).order('created_at',{ascending:true});
-    if(error)throw error;
-    payments=data||[];
+    const url=SUPABASE_URL+'/rest/v1/angsuran?select=*&order=pembayaran_ke.asc,tanggal_pembayaran.asc,created_at.asc';
+    const res=await fetch(url,{headers:apiHeaders(),cache:'no-store'});
+    const data=await readJsonResponse(res);
+    payments=Array.isArray(data)?data:[];
     render();
-    setStatus('✓ Terhubung ke Supabase • Data tersimpan online','ok');
+    setStatus('✓ Terhubung ke Supabase • Data tersimpan online','ok',true);
+    return true;
   }catch(e){
-    console.error(e);
-    setStatus('<b>Gagal mengambil data dari Supabase</b><br>'+esc(errText(e)),'err');
+    console.error('loadPayments',e);
+    setStatus('<b>Gagal terhubung ke Supabase</b><br>'+esc(errText(e)),'err');
     document.getElementById('rows').innerHTML='<tr><td colspan="8" style="padding:25px;color:var(--muted)">Data belum dapat dimuat.</td></tr>';
+    return false;
   }
 }
+
+function encodedPath(path){return path.split('/').map(encodeURIComponent).join('/')}
 
 async function uploadProof(file){
   if(!file)return null;
   if(file.size>6*1024*1024)throw new Error('Ukuran bukti maksimal 6 MB.');
-  const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';
   const base=file.name.replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]/g,'-').slice(0,45)||'bukti';
   const path=Date.now()+'_'+Math.random().toString(36).slice(2)+'_'+base+'.'+ext;
-  const {data,error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined});
-  if(error)throw new Error('Upload bukti gagal: '+errText(error));
-  const {data:pub}=sb.storage.from(BUCKET).getPublicUrl(data.path);
-  return {name:file.name,url:pub.publicUrl,path:data.path};
+  const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+BUCKET+'/'+encodedPath(path),{
+    method:'POST',headers:{...apiHeaders(),'Content-Type':file.type||'application/octet-stream','x-upsert':'false'},body:file
+  });
+  await readJsonResponse(res);
+  return {name:file.name,url:SUPABASE_URL+'/storage/v1/object/public/'+BUCKET+'/'+encodedPath(path),path};
 }
+
 async function removeFile(url){
   if(!url)return;
   const marker='/storage/v1/object/public/'+BUCKET+'/';
   const i=url.indexOf(marker);if(i<0)return;
   const path=decodeURIComponent(url.slice(i+marker.length));
-  const {error}=await sb.storage.from(BUCKET).remove([path]);
-  if(error)console.warn(error);
+  try{
+    const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+BUCKET+'/'+encodedPath(path),{method:'DELETE',headers:apiHeaders()});
+    if(!res.ok)console.warn('removeFile',await res.text());
+  }catch(e){console.warn('removeFile',e)}
 }
 
 async function addPayment(){
@@ -122,24 +159,82 @@ async function addPayment(){
   const amount=Number(document.getElementById('amount').value);
   const note=document.getElementById('note').value.trim();
   const file=document.getElementById('proof').files[0];
-  if(!date||!amount)return alert('Isi tanggal dan jumlah pembayaran.');
-  const btn=document.getElementById('addBtn');btn.disabled=true;btn.textContent='Menyimpan...';
+
+  if(!date || !amount){
+    alert('Isi tanggal dan jumlah pembayaran.');
+    return;
+  }
+
+  const btn=document.getElementById('addBtn');
+  btn.disabled=true;
+  btn.textContent='Menyimpan...';
+
   let uploaded=null;
+
   try{
     const nextNo=payments.length+1;
-    uploaded=await uploadProof(file);
-    const row={no_transaksi:'TRX-'+Date.now().toString().slice(-8),nama:'Nikhol (ini Kholid)',pembayaran_ke:nextNo,tanggal_pembayaran:date,jumlah:amount,keterangan:note||null,bukti_nama:uploaded?.name||null,bukti_url:uploaded?.url||null};
-    const {error}=await sb.from('angsuran').insert(row);
-    if(error){if(uploaded)await removeFile(uploaded.url);throw new Error('Data gagal disimpan: '+errText(error))}
-    document.getElementById('note').value='';document.getElementById('proof').value='';
-    setStatus('✓ Pembayaran berhasil disimpan','ok');
+    const row={
+      no_transaksi:'TRX-'+Date.now().toString().slice(-8),
+      nama:'Nikhol (ini Kholid)',
+      pembayaran_ke:nextNo,
+      tanggal_pembayaran:date,
+      jumlah:amount,
+      keterangan:note||null,
+      bukti_nama:null,
+      bukti_url:null
+    };
+
+    /* Upload bukti TERLEBIH DAHULU.
+       Dengan urutan ini kita tidak membutuhkan policy UPDATE pada tabel angsuran. */
+    if(file){
+      setStatus('Mengupload bukti pembayaran...','wait');
+      uploaded=await uploadProof(file);
+      row.bukti_nama=uploaded.name;
+      row.bukti_url=uploaded.url;
+    }
+
+    setStatus('Menyimpan catatan pembayaran...','wait');
+
+    const res=await fetch(SUPABASE_URL+'/rest/v1/angsuran',{
+      method:'POST',
+      headers:{...apiHeaders(),'Content-Type':'application/json','Prefer':'return=representation'},
+      body:JSON.stringify(row)
+    });
+
+    const inserted=await readJsonResponse(res);
+    const created=Array.isArray(inserted)?inserted[0]:inserted;
+
+    if(!created?.id){
+      throw new Error('Supabase tidak mengembalikan ID catatan setelah penyimpanan.');
+    }
+
+    document.getElementById('note').value='';
+    document.getElementById('proof').value='';
+
     await loadPayments();
-    const idx=payments.findIndex(p=>p.no_transaksi===row.no_transaksi);
+
+    const idx=payments.findIndex(p=>String(p.id)===String(created.id));
     if(idx>=0)showReceipt(idx);
+
+    setStatus('✓ Pembayaran dan bukti berhasil disimpan','ok',true);
+
   }catch(e){
-    console.error(e);
-    setStatus('<b>Gagal menyimpan pembayaran</b><br>'+esc(errText(e)),'err');
-  }finally{btn.disabled=false;btn.textContent='+ Catat Pembayaran'}
+    console.error('addPayment',e);
+
+    /* Jika file sudah berhasil diupload tetapi penyimpanan catatan gagal,
+       hapus kembali file agar tidak meninggalkan file yatim. */
+    if(uploaded){
+      await removeFile(uploaded.url);
+    }
+
+    setStatus('<b>Gagal menyimpan pembayaran/bukti</b><br>'+esc(errText(e)),'err');
+
+    alert('Gagal menyimpan pembayaran/bukti:\\n\\n'+errText(e));
+
+  }finally{
+    btn.disabled=false;
+    btn.textContent='+ Catat Pembayaran';
+  }
 }
 
 function render(){
@@ -156,11 +251,11 @@ function render(){
 function showReceipt(i){
   const p=payments[i];if(!p)return;
   const proof=p.bukti_url?(String(p.bukti_url).toLowerCase().includes('.pdf')?'<div class="proof-name">📄 '+esc(p.bukti_nama||'Bukti PDF')+'</div>':'<div class="proof-name">🖼️ '+esc(p.bukti_nama||'Bukti pembayaran')+'</div><img class="proof-img" src="'+esc(p.bukti_url)+'" alt="Bukti pembayaran" onclick="showZoom(\''+esc(p.bukti_url)+'\')">'):'<div class="proof-name">Belum ada bukti pembayaran</div>';
-  const content='<div class="receipt"><h3>BUKTI TRANSAKSI ANGSURAN</h3><div class="receipt-row"><span>No. Transaksi</span><b>'+esc(p.no_transaksi||'TRX-LAMA')+'</b></div><div class="receipt-row"><span>Nama</span><b>Nikhol (ini Kholid)</b></div><div class="receipt-row"><span>Pembayaran ke</span><b>'+(i+1)+'</b></div><div class="receipt-row"><span>Tanggal</span><b>'+formatDate(p.tanggal_pembayaran,'long')+'</b></div><div class="receipt-row"><span>Keterangan</span><b>'+esc(p.keterangan||'-')+'</b></div><div class="receipt-row"><span>Metode</span><b>Pembayaran angsuran</b></div><div class="receipt-total">Dibayar: '+rupiah(p.jumlah)+'</div><div style="margin-top:14px"><b>Bukti Pembayaran</b>'+proof+'</div><p class="note">Bukti transaksi pribadi • Tersimpan online</p><button onclick="printReceipt('+i+')">Cetak / Simpan PDF</button></div>';
+  const content='<div class="receipt"><h3>BUKTI TRANSAKSI ANGSURAN</h3><div class="receipt-row"><span>No. Transaksi</span><b>'+esc(p.no_transaksi||'TRX-LAMA')+'</b></div><div class="receipt-row"><span>Nama</span><b>Nikhol (ini Kholid)</b></div><div class="receipt-row"><span>Pembayaran ke</span><b>'+(i+1)+'</b></div><div class="receipt-row"><span>Tanggal</span><b>'+formatDate(p.tanggal_pembayaran,'long')+'</b></div><div class="receipt-row"><span>Keterangan</span><b>'+esc(p.keterangan||'-')+'</b></div><div class="receipt-row"><span>Metode</span><b>Pembayaran angsuran</b></div><div class="receipt-total">Dibayar: '+rupiah(p.jumlah)+'</div><div style="margin-top:14px"><b>Bukti Pembayaran</b>'+proof+'</div><p class="note">Bukti transaksi pribadi • Tersimpan online</p><button class="secondary" style="margin-right:7px" onclick="hideReceipt()">Sembunyikan Bukti</button><button onclick="printReceipt('+i+')">Cetak / Simpan PDF</button></div>';
   document.getElementById('receipt').innerHTML=content;
 }
 
-function printReceipt(i){
+function hideReceipt(){document.getElementById('receipt').innerHTML='';}\n\nfunction printReceipt(i){
   const r=document.getElementById('receipt').querySelector('.receipt');if(!r)return;
   const clone=r.cloneNode(true);
   clone.querySelectorAll('button').forEach(x=>x.remove());
@@ -173,12 +268,12 @@ async function removePayment(i){
   const p=payments[i];if(!p)return;
   if(!confirm('Hapus catatan pembayaran ini?'))return;
   try{
-    const {error}=await sb.from('angsuran').delete().eq('id',p.id);
-    if(error)throw error;
+    const res=await fetch(SUPABASE_URL+'/rest/v1/angsuran?id=eq.'+encodeURIComponent(p.id),{method:'DELETE',headers:{...apiHeaders(),'Prefer':'return=minimal'}});
+    await readJsonResponse(res);
     if(p.bukti_url)await removeFile(p.bukti_url);
     document.getElementById('receipt').innerHTML='';
-    setStatus('✓ Pembayaran berhasil dihapus','ok');
     await loadPayments();
+    setStatus('✓ Pembayaran berhasil dihapus','ok');
   }catch(e){console.error(e);setStatus('<b>Gagal menghapus pembayaran</b><br>'+esc(errText(e)),'err')}
 }
 
@@ -187,6 +282,8 @@ function hideZoom(){document.getElementById('zoomModal').classList.remove('show'
 function zoom(v){if(v===0)zoomScale=1;else zoomScale=Math.max(.5,Math.min(5,zoomScale+v));document.getElementById('zoomImg').style.transform='scale('+zoomScale+')'}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hideZoom()});
 document.getElementById('zoomImg').addEventListener('click',()=>zoom(.25));
+window.addEventListener('error',e=>{console.error(e.error||e.message);setStatus('<b>JavaScript error:</b><br>'+esc(e.message),'err')});
+window.addEventListener('unhandledrejection',e=>{console.error(e.reason);setStatus('<b>Error:</b><br>'+esc(errText(e.reason)),'err')});
 setToday();
 loadPayments();
 </script></body></html>
