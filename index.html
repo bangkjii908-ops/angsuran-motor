@@ -1,4 +1,4 @@
-<!doctype html>
+  <!doctype html>
 <html lang="id">
 <head>
 <meta charset="utf-8">
@@ -77,6 +77,14 @@ button.secondary{background:transparent;color:var(--text);border:1px solid var(-
   a{color:#000!important;text-decoration:none!important}
 }
 
+
+.edit-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:none;align-items:center;justify-content:center;padding:18px}
+.edit-modal.show{display:flex}
+.edit-box{width:100%;max-width:480px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 16px 50px #0005}
+.edit-box h3{margin:0 0 16px}
+.edit-box .field{margin-bottom:12px}
+.edit-box input{width:100%;padding:10px 11px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+.edit-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.details{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:500px){
 .grid{grid-template-columns:1fr 1fr;gap:9px}.card{padding:14px}.value{font-size:18px}h1{font-size:23px}
@@ -135,6 +143,21 @@ button.danger{background:#b91c1c;color:#fff;border:0}button.danger:hover{backgro
       <span class="zoom-level" id="zoomLevel">100%</span>
       <button onclick="zoomIn(event)">+</button>
       <button onclick="resetZoom(event)">↺</button>
+    </div>
+  </div>
+</div>
+
+<!-- Form edit transaksi -->
+<div class="edit-modal" id="editModal" onclick="closeEditModal(event)">
+  <div class="edit-box" onclick="event.stopPropagation()">
+    <h3>Edit Angsuran</h3>
+    <input type="hidden" id="editId">
+    <div class="field"><label for="editDate">Tanggal pembayaran</label><input type="date" id="editDate"></div>
+    <div class="field"><label for="editAmount">Jumlah pembayaran</label><input type="number" id="editAmount" min="1"></div>
+    <div class="field"><label for="editNote">Keterangan</label><input type="text" id="editNote" placeholder="Keterangan pembayaran"></div>
+    <div class="edit-actions">
+      <button class="secondary" onclick="closeEditModal()">Batal</button>
+      <button onclick="savePaymentEdit()">Simpan Perubahan</button>
     </div>
   </div>
 </div>
@@ -240,6 +263,42 @@ async function addPayment(){
  }
 }
 
+function editPayment(i){
+ const p=payments[i];
+ if(!p)return;
+ document.getElementById('editId').value=p.id;
+ document.getElementById('editDate').value=p.date||'';
+ document.getElementById('editAmount').value=p.amount||'';
+ document.getElementById('editNote').value=p.note||'';
+ document.getElementById('editModal').classList.add('show');
+}
+function closeEditModal(event){
+ if(event && event.target!==event.currentTarget)return;
+ document.getElementById('editModal').classList.remove('show');
+}
+async function savePaymentEdit(){
+ const id=document.getElementById('editId').value;
+ const date=document.getElementById('editDate').value;
+ const amount=Number(document.getElementById('editAmount').value);
+ const note=document.getElementById('editNote').value.trim();
+ if(!date || !Number.isFinite(amount) || amount<=0)return alert('Isi tanggal dan jumlah pembayaran dengan benar.');
+ try{
+  const {error}=await sb.from('angsuran').update({
+   tanggal_pembayaran:date,
+   jumlah:amount,
+   keterangan:note||null
+  }).eq('id',id);
+  if(error)throw error;
+  closeEditModal();
+  hideReceipt();
+  await loadPayments();
+  alert('Transaksi berhasil diperbarui.');
+ }catch(error){
+  console.error(error);
+  alert('Gagal mengubah transaksi: '+(error.message||error));
+ }
+}
+
 async function removePayment(i){
  const p=payments[i];
  if(!p)return;
@@ -298,6 +357,10 @@ function dueDate(i){
  return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})
 }
 
+function hideReceipt(){
+ document.getElementById('receipt').innerHTML='';
+}
+
 function showReceipt(i){
  const p=payments[i];
  if(!p)return;
@@ -307,7 +370,7 @@ function showReceipt(i){
  :'<div class="proof-name">Belum ada bukti pembayaran</div>';
 
  document.getElementById('receipt').innerHTML=
- '<div class="receipt"><h3>BUKTI TRANSAKSI ANGSURAN</h3>'+
+ '<div class="receipt"><button class="secondary" style="float:right" onclick="hideReceipt()">Tutup Bukti Transaksi</button><h3>BUKTI TRANSAKSI ANGSURAN</h3>'+
  '<div class="receipt-row"><span>No. Transaksi</span><b>'+escapeHtml(p.no||'TRX-LAMA')+'</b></div>'+
  '<div class="receipt-row"><span>Nama</span><b>Nikhol (ini Kholid)</b></div>'+
  '<div class="receipt-row"><span>Pembayaran ke</span><b>'+p.paymentNo+'</b></div>'+
@@ -406,7 +469,7 @@ function render(){
  '<td>'+escapeHtml(p.note||'-')+'</td>'+
  '<td><button class="secondary" onclick="showReceipt('+i+')">Lihat</button></td>'+
  '<td>'+(p.proof?'<button class="danger" onclick="removeProof('+i+')">Hapus Bukti</button>':'<span class="note">—</span>')+'</td>'+
- '<td><button class="secondary" onclick="removePayment('+i+')">Hapus</button></td></tr>'
+ '<td><button class="secondary" onclick="editPayment('+i+')">Edit</button> <button class="secondary" onclick="removePayment('+i+')">Hapus</button></td></tr>'
  ).join('');
 }
 
